@@ -1,0 +1,49 @@
+# MQL4 Compiled files
+*.ex4
+*.ex5
+
+# Backtest reports
+*.htm
+*.html
+*.mht
+
+# MetaTrader logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Temporary files
+*.tmp
+*.bak
+*.backup
+*.temp
+
+# System files
+Thumbs.db
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Node modules
+node_modules/
+
+# IDE specific
+*.sublime-project
+*.sublime-workspace
+
+# Ignore all but specified
+!/ea/
+!/indicators/
+!/utils/
+!/docs/
+!/backtest/

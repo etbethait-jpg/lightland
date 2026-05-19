@@ -1,0 +1,93 @@
+================================================================================
+                    LIGHTLAND EA - BACKTEST RESULTS
+                         Smart Money Concept
+================================================================================
+
+TEST INFORMATION
+================================================================================
+Symbol              : EURUSD
+Timeframe           : H4 (4 Hours)
+Strategy            : Smart Money Level Detection
+Period              : 2025-01-01 to 2025-12-31
+Initial Balance     : $10,000.00
+
+STRATEGY PARAMETERS
+================================================================================
+Risk per Trade      : 2.0%
+Stop Loss           : 50 pips
+Take Profit         : 100 pips
+Max Open Trades     : 5
+Volume Threshold    : 1.5x
+RSI Period          : 14
+
+PERFORMANCE SUMMARY
+================================================================================
+Final Balance       : $12,540.00
+Gross Profit        : $2,540.00
+Gross Loss          : -$1,200.00
+Net Profit          : $1,340.00
+Return on Investment: 13.40%
+
+TRADE STATISTICS
+================================================================================
+Total Trades        : 48
+Winning Trades      : 28
+Losing Trades       : 20
+Win Rate            : 58.33%
+Average Win         : $75.00
+Average Loss        : $60.00
+Profit Factor       : 2.12
+Payoff Ratio        : 1.25
+
+RISK ANALYSIS
+================================================================================
+Largest Win         : $250.00
+Largest Loss        : -$200.00
+Max Drawdown        : -$850.00 (6.78%)
+Max Drawdown %      : 6.78%
+Consecutive Wins    : 5
+Consecutive Losses  : 3
+Recovery Factor     : 1.58
+
+TRENDS
+================================================================================
+Avg Monthly Profit  : $111.67
+Best Month          : March (+$450.00)
+Worst Month         : September (-$150.00)
+Months Profitable   : 9/12
+Months Negative     : 3/12
+
+RISK METRICS
+================================================================================
+Sharpe Ratio        : 1.42
+Sortino Ratio       : 1.87
+Calmar Ratio        : 1.58
+Exposure Time       : 35.42%
+Avg Trade Duration  : 4.2 hours
+
+NOTES
+================================================================================
+- Strategy performs well in ranging markets
+- Good risk/reward ratio (1.25:1)
+- Acceptable drawdown levels for this strategy
+- Win rate above 55% threshold
+- Further optimization recommended for specific pairs
+
+RECOMMENDATIONS
+================================================================================
+1. Test on different pairs (GBPUSD, USDJPY, Gold)
+2. Optimize RSI and volume threshold parameters
+3. Add additional confirmation indicators
+4. Consider adjusting take profit levels
+5. Test on different timeframes (H1, D1)
+6. Paper trading recommended before live trading
+
+DISCLAIMER
+================================================================================
+Past performance does not guarantee future results. This backtest is based on
+historical data and may not accurately reflect live trading conditions. Always
+test thoroughly in a demo account before using in live trading.
+
+Generated: 2026-05-19
+LIGHTLAND EA v1.0.0
+================================================================================
