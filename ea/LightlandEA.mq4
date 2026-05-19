@@ -110,7 +110,7 @@ bool CheckBuySignal()
     if(Close[1] <= Open[1]) return false;  // Previous candle must be bullish
     
     // Condition 3: Volume confirmation
-    double dAvgVolume = iMA(Symbol(), 0, 20, 0, MODE_SMA, VOLUME, 1);
+    double dAvgVolume = CalculateAverageVolume(20);
     if(Volume[1] < dAvgVolume * VolumeThreshold) return false;
     
     // Condition 4: Close above resistance
@@ -121,7 +121,7 @@ bool CheckBuySignal()
     Print("BUY SIGNAL DETECTED - ", TimeToStr(Time[0], TIME_DATE|TIME_MINUTES));
     Print("Price: ", Close[0]);
     Print("RSI: ", iRSI(Symbol(), 0, RSIPeriod, PRICE_CLOSE, 1));
-    Print("Volume Ratio: ", Volume[1] / dAvgVolume);
+    Print("Volume Ratio: ", (double)Volume[1] / dAvgVolume);
     Print("═══════════════════════════════════════════════════════════");
     
     return true;
@@ -139,7 +139,7 @@ bool CheckSellSignal()
     if(Close[1] >= Open[1]) return false;  // Previous candle must be bearish
     
     // Condition 3: Volume confirmation
-    double dAvgVolume = iMA(Symbol(), 0, 20, 0, MODE_SMA, VOLUME, 1);
+    double dAvgVolume = CalculateAverageVolume(20);
     if(Volume[1] < dAvgVolume * VolumeThreshold) return false;
     
     // Condition 4: Close below support
@@ -150,7 +150,7 @@ bool CheckSellSignal()
     Print("SELL SIGNAL DETECTED - ", TimeToStr(Time[0], TIME_DATE|TIME_MINUTES));
     Print("Price: ", Close[0]);
     Print("RSI: ", iRSI(Symbol(), 0, RSIPeriod, PRICE_CLOSE, 1));
-    Print("Volume Ratio: ", Volume[1] / dAvgVolume);
+    Print("Volume Ratio: ", (double)Volume[1] / dAvgVolume);
     Print("═══════════════════════════════════════════════════════════");
     
     return true;
@@ -330,6 +330,19 @@ double GetSupportLevel()
         if(Low[i] < dMin) dMin = Low[i];
     }
     return dMin;
+}
+
+//+------------------------------------------------------------------+
+// CALCULATE AVERAGE VOLUME over N bars
+//+------------------------------------------------------------------+
+double CalculateAverageVolume(int iPeriod)
+{
+    double dSum = 0;
+    for(int i = 1; i <= iPeriod; i++)
+    {
+        dSum += (double)Volume[i];
+    }
+    return dSum / iPeriod;
 }
 
 //+------------------------------------------------------------------+
