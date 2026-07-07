@@ -5,9 +5,9 @@
 //+------------------------------------------------------------------+
 #property copyright "LIGHTLAND"
 #property link      "https://github.com/etbethait-jpg/lightland"
-#property version   "1.01"
+#property version   "1.02"
 #property strict
-#property description "LIGHTLAND - Smart Money Expert Advisor (FIXED VERSION)"
+#property description "LIGHTLAND - Smart Money Expert Advisor (LOT SIZE FIXED)"
 
 //+------------------------------------------------------------------+
 // INPUT PARAMETERS
@@ -19,7 +19,7 @@ input int MagicNumber = 123456;             // Magic Number
 input bool UseSmartMoneyLevels = true;      // Use Smart Money Indicator
 input int MaxTrades = 5;                    // Maximum open trades
 input int RSIPeriod = 14;                   // RSI Period
-input double VolumeThreshold = 1.0;         // Volume threshold multiplier (REDUCED from 1.5)
+input double VolumeThreshold = 1.0;         // Volume threshold multiplier
 input bool AllowBuys = true;                // Allow BUY orders
 input bool AllowSells = true;               // Allow SELL orders
 input int MinProfitPips = 10;               // Minimum profit to consider
@@ -43,7 +43,7 @@ int OnInit()
     iDigits = Digits;
     
     Print("═══════════════════════════════════════════════════════════");
-    Print("  LIGHTLAND EA v1.01 - Smart Money Concept (FIXED)");
+    Print("  LIGHTLAND EA v1.02 - Smart Money Concept (LOT FIXED)");
     Print("═══════════════════════════════════════════════════════════");
     Print("Symbol: ", Symbol());
     Print("Period: ", Period(), " minutes");
@@ -52,7 +52,7 @@ int OnInit()
     Print("Take Profit: ", TakeProfitPips, " pips");
     Print("Max Trades: ", MaxTrades);
     Print("Volume Threshold: ", VolumeThreshold, "x");
-    Print("Trailing Stop Activation: ", TrailingStopActivation, " pips");
+    Print("Account Balance: ", AccountBalance());
     Print("═══════════════════════════════════════════════════════════");
     
     bInitialized = true;
@@ -169,7 +169,7 @@ void OpenBuyOrder()
     
     if(dLotSize <= 0)
     {
-        Print("✗ BUY Order SKIPPED: Invalid lot size calculated");
+        Print("✗ BUY Order SKIPPED: Invalid lot size ", dLotSize);
         return;
     }
     
@@ -194,7 +194,7 @@ void OpenBuyOrder()
     }
     else
     {
-        Print("✗ BUY Order FAILED: Error ", GetLastError());
+        Print("✗ BUY Order FAILED: Error ", GetLastError(), " - Lot: ", dLotSize);
     }
 }
 
@@ -209,7 +209,7 @@ void OpenSellOrder()
     
     if(dLotSize <= 0)
     {
-        Print("✗ SELL Order SKIPPED: Invalid lot size calculated");
+        Print("✗ SELL Order SKIPPED: Invalid lot size ", dLotSize);
         return;
     }
     
@@ -234,12 +234,12 @@ void OpenSellOrder()
     }
     else
     {
-        Print("✗ SELL Order FAILED: Error ", GetLastError());
+        Print("✗ SELL Order FAILED: Error ", GetLastError(), " - Lot: ", dLotSize);
     }
 }
 
 //+------------------------------------------------------------------+
-// CALCULATE LOT SIZE based on risk (IMPROVED)
+// CALCULATE LOT SIZE based on risk (CORRECTED FORMULA)
 //+------------------------------------------------------------------+
 double CalculateLotSize(int iStopLossPips)
 {
@@ -249,25 +249,37 @@ double CalculateLotSize(int iStopLossPips)
     double dTickSize = MarketInfo(Symbol(), MODE_TICKSIZE);
     double dBalance = AccountBalance();
     
-    // Validation
-    if(dMinLot <= 0 || dTickValue <= 0 || dTickSize <= 0 || dBalance <= 0)
-    {
-        Print("⚠ Warning: Invalid MarketInfo values - Using minimum lot");
-        return dMinLot;
-    }
+    // Validation - DEFAULT VALUES IF MARKETINFO FAILS
+    if(dMinLot <= 0) dMinLot = 0.01;
+    if(dTickValue <= 0) dTickValue = 10.0;
+    if(dTickSize <= 0) dTickSize = 0.0001;
+    if(dBalance <= 0) dBalance = 5000;
     
-    double dRiskAmount = dBalance * (Risk / 100.0);
-    double dStopLossPrice = iStopLossPips * dTickSize;
+    // CORRECTED FORMULA
+    double dRiskAmount = dBalance * (Risk / 100.0);      // Risk in dollars
+    double dStopLossPrice = iStopLossPips * dTickSize;   // SL in price units
+    double dLotRisk = dStopLossPrice * dTickValue;       // Risk per lot
     
-    double dLotSize = dRiskAmount / (dStopLossPrice * dTickValue);
+    double dLotSize = dRiskAmount / dLotRisk;            // Lot size calculation
+    
+    Print("  [LOT CALC] Balance=$", dBalance, " | Risk%=", Risk, " | RiskAmount=$", dRiskAmount);
+    Print("           SLpips=", iStopLossPips, " | TickSize=", dTickSize, " | TickValue=", dTickValue);
+    Print("           LotRisk=$", dLotRisk, " | Calculated Lot=", dLotSize);
     
     // Clamp to valid range
-    if(dLotSize < dMinLot) dLotSize = dMinLot;
-    if(dLotSize > dMaxLot) dLotSize = dMaxLot;
+    if(dLotSize < dMinLot) 
+    {
+        dLotSize = dMinLot;
+        Print("           ⚠ Adjusted to MIN lot: ", dMinLot);
+    }
+    if(dLotSize > dMaxLot) 
+    {
+        dLotSize = dMaxLot;
+        Print("           ⚠ Adjusted to MAX lot: ", dMaxLot);
+    }
     
     dLotSize = NormalizeDouble(dLotSize, 2);
-    
-    Print("  Lot calculation: Risk=", Risk, "% | Balance=", dBalance, " | SL=", iStopLossPips, "pips | Lot=", dLotSize);
+    Print("           FINAL LOT SIZE: ", dLotSize);
     
     return dLotSize;
 }
