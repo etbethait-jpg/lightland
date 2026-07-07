@@ -5,9 +5,9 @@
 //+------------------------------------------------------------------+
 #property copyright "LIGHTLAND"
 #property link      "https://github.com/etbethait-jpg/lightland"
-#property version   "1.00"
+#property version   "1.01"
 #property strict
-#property description "LIGHTLAND - Smart Money Expert Advisor"
+#property description "LIGHTLAND - Smart Money Expert Advisor (FIXED VERSION)"
 
 //+------------------------------------------------------------------+
 // INPUT PARAMETERS
@@ -19,7 +19,11 @@ input int MagicNumber = 123456;             // Magic Number
 input bool UseSmartMoneyLevels = true;      // Use Smart Money Indicator
 input int MaxTrades = 5;                    // Maximum open trades
 input int RSIPeriod = 14;                   // RSI Period
-input double VolumeThreshold = 1.5;         // Volume threshold multiplier
+input double VolumeThreshold = 1.0;         // Volume threshold multiplier (REDUCED from 1.5)
+input bool AllowBuys = true;                // Allow BUY orders
+input bool AllowSells = true;               // Allow SELL orders
+input int MinProfitPips = 10;               // Minimum profit to consider
+input int TrailingStopActivation = 30;      // Pips profit to activate trailing stop
 
 //+------------------------------------------------------------------+
 // GLOBAL VARIABLES
@@ -27,6 +31,7 @@ input double VolumeThreshold = 1.5;         // Volume threshold multiplier
 double dPoint;
 int iDigits;
 bool bInitialized = false;
+static int iLastTradeBar = -1;              // Prevent multiple trades per bar
 
 //+------------------------------------------------------------------+
 // OnInit - Initialization function
@@ -38,7 +43,7 @@ int OnInit()
     iDigits = Digits;
     
     Print("═══════════════════════════════════════════════════════════");
-    Print("  LIGHTLAND EA - Smart Money Concept Initialized");
+    Print("  LIGHTLAND EA v1.01 - Smart Money Concept (FIXED)");
     Print("═══════════════════════════════════════════════════════════");
     Print("Symbol: ", Symbol());
     Print("Period: ", Period(), " minutes");
@@ -46,6 +51,8 @@ int OnInit()
     Print("Stop Loss: ", StopLossPips, " pips");
     Print("Take Profit: ", TakeProfitPips, " pips");
     Print("Max Trades: ", MaxTrades);
+    Print("Volume Threshold: ", VolumeThreshold, "x");
+    Print("Trailing Stop Activation: ", TrailingStopActivation, " pips");
     Print("═══════════════════════════════════════════════════════════");
     
     bInitialized = true;
@@ -67,14 +74,9 @@ void OnTick()
 {
     if(!bInitialized) return;
     
-    static datetime lastBarTime = 0;
-    
-    // Process only on new bar
-    if(lastBarTime == Time[0]) return;
-    lastBarTime = Time[0];
-    
-    // Check for new bar at specific hours
-    if(!IsNewBar()) return;
+    // Check if we have a new bar (SIMPLIFIED)
+    if(iLastTradeBar == Bars) return;
+    iLastTradeBar = Bars;
     
     // Main trading logic
     int iOrdersOpen = CountOpenOrders();
@@ -82,13 +84,13 @@ void OnTick()
     if(iOrdersOpen < MaxTrades)
     {
         // Check for BUY signal
-        if(CheckBuySignal())
+        if(AllowBuys && CheckBuySignal())
         {
             OpenBuyOrder();
         }
         
-        // Check for SELL signal
-        if(CheckSellSignal())
+        // Check for SELL signal (only if no buy was just placed)
+        if(AllowSells && CheckSellSignal())
         {
             OpenSellOrder();
         }
@@ -99,58 +101,58 @@ void OnTick()
 }
 
 //+------------------------------------------------------------------+
-// BUY SIGNAL - Detection logic
+// BUY SIGNAL - Detection logic (SIMPLIFIED & LESS RESTRICTIVE)
 //+------------------------------------------------------------------+
 bool CheckBuySignal()
 {
-    // Condition 1: RSI confirmation
-    if(iRSI(Symbol(), 0, RSIPeriod, PRICE_CLOSE, 1) < 50) return false;
+    // Condition 1: RSI confirmation - Above 45 (was 50)
+    double dRSI = iRSI(Symbol(), 0, RSIPeriod, PRICE_CLOSE, 1);
+    if(dRSI < 45) return false;
     
-    // Condition 2: Price action
-    if(Close[1] <= Open[1]) return false;  // Previous candle must be bullish
+    // Condition 2: Price action - Previous candle should be bullish
+    if(Close[1] <= Open[1]) return false;
     
-    // Condition 3: Volume confirmation
+    // Condition 3: Volume - Volume above AVERAGE (was 1.5x)
     double dAvgVolume = CalculateAverageVolume(20);
-    if(Volume[1] < dAvgVolume * VolumeThreshold) return false;
+    if(dAvgVolume > 0 && Volume[1] < dAvgVolume * VolumeThreshold) return false;
     
-    // Condition 4: Close above resistance
-    double dResistance = GetResistanceLevel();
-    if(Close[0] <= dResistance) return false;
+    // Condition 4: SIMPLIFIED - Close above recent support (not resistance!)
+    double dSupport = GetSupportLevel();
+    if(Close[0] <= dSupport) return false;  // Price should be above support
     
     Print("═══════════════════════════════════════════════════════════");
-    Print("BUY SIGNAL DETECTED - ", TimeToStr(Time[0], TIME_DATE|TIME_MINUTES));
-    Print("Price: ", Close[0]);
-    Print("RSI: ", iRSI(Symbol(), 0, RSIPeriod, PRICE_CLOSE, 1));
-    Print("Volume Ratio: ", (double)Volume[1] / dAvgVolume);
+    Print("✓ BUY SIGNAL DETECTED - ", TimeToStr(Time[0], TIME_DATE|TIME_MINUTES));
+    Print("  Price: ", Close[0], " | RSI: ", dRSI, " | Support: ", dSupport);
+    Print("  Volume Ratio: ", (dAvgVolume > 0 ? (double)Volume[1] / dAvgVolume : 0));
     Print("═══════════════════════════════════════════════════════════");
     
     return true;
 }
 
 //+------------------------------------------------------------------+
-// SELL SIGNAL - Detection logic
+// SELL SIGNAL - Detection logic (SIMPLIFIED & LESS RESTRICTIVE)
 //+------------------------------------------------------------------+
 bool CheckSellSignal()
 {
-    // Condition 1: RSI confirmation
-    if(iRSI(Symbol(), 0, RSIPeriod, PRICE_CLOSE, 1) > 50) return false;
+    // Condition 1: RSI confirmation - Below 55 (was 50)
+    double dRSI = iRSI(Symbol(), 0, RSIPeriod, PRICE_CLOSE, 1);
+    if(dRSI > 55) return false;
     
-    // Condition 2: Price action
-    if(Close[1] >= Open[1]) return false;  // Previous candle must be bearish
+    // Condition 2: Price action - Previous candle should be bearish
+    if(Close[1] >= Open[1]) return false;
     
-    // Condition 3: Volume confirmation
+    // Condition 3: Volume - Volume above AVERAGE (was 1.5x)
     double dAvgVolume = CalculateAverageVolume(20);
-    if(Volume[1] < dAvgVolume * VolumeThreshold) return false;
+    if(dAvgVolume > 0 && Volume[1] < dAvgVolume * VolumeThreshold) return false;
     
-    // Condition 4: Close below support
-    double dSupport = GetSupportLevel();
-    if(Close[0] >= dSupport) return false;
+    // Condition 4: SIMPLIFIED - Close below recent resistance (not support!)
+    double dResistance = GetResistanceLevel();
+    if(Close[0] >= dResistance) return false;  // Price should be below resistance
     
     Print("═══════════════════════════════════════════════════════════");
-    Print("SELL SIGNAL DETECTED - ", TimeToStr(Time[0], TIME_DATE|TIME_MINUTES));
-    Print("Price: ", Close[0]);
-    Print("RSI: ", iRSI(Symbol(), 0, RSIPeriod, PRICE_CLOSE, 1));
-    Print("Volume Ratio: ", (double)Volume[1] / dAvgVolume);
+    Print("✓ SELL SIGNAL DETECTED - ", TimeToStr(Time[0], TIME_DATE|TIME_MINUTES));
+    Print("  Price: ", Close[0], " | RSI: ", dRSI, " | Resistance: ", dResistance);
+    Print("  Volume Ratio: ", (dAvgVolume > 0 ? (double)Volume[1] / dAvgVolume : 0));
     Print("═══════════════════════════════════════════════════════════");
     
     return true;
@@ -163,7 +165,13 @@ void OpenBuyOrder()
 {
     double dStopLoss = Close[0] - (StopLossPips * dPoint);
     double dTakeProfit = Close[0] + (TakeProfitPips * dPoint);
-    double dLotSize = CalculateLotSize(dStopLoss);
+    double dLotSize = CalculateLotSize(StopLossPips);
+    
+    if(dLotSize <= 0)
+    {
+        Print("✗ BUY Order SKIPPED: Invalid lot size calculated");
+        return;
+    }
     
     int iTicket = OrderSend(
         Symbol(),
@@ -181,11 +189,12 @@ void OpenBuyOrder()
     
     if(iTicket > 0)
     {
-        Print("✓ BUY Order opened: Ticket #", iTicket, " | Lot: ", dLotSize, " | SL: ", dStopLoss, " | TP: ", dTakeProfit);
+        Print("✓ BUY Order OPENED: Ticket #", iTicket, " | Lot: ", dLotSize);
+        Print("  Entry: ", Ask, " | SL: ", dStopLoss, " | TP: ", dTakeProfit);
     }
     else
     {
-        Print("✗ BUY Order failed: Error ", GetLastError());
+        Print("✗ BUY Order FAILED: Error ", GetLastError());
     }
 }
 
@@ -196,7 +205,13 @@ void OpenSellOrder()
 {
     double dStopLoss = Close[0] + (StopLossPips * dPoint);
     double dTakeProfit = Close[0] - (TakeProfitPips * dPoint);
-    double dLotSize = CalculateLotSize(dStopLoss);
+    double dLotSize = CalculateLotSize(StopLossPips);
+    
+    if(dLotSize <= 0)
+    {
+        Print("✗ SELL Order SKIPPED: Invalid lot size calculated");
+        return;
+    }
     
     int iTicket = OrderSend(
         Symbol(),
@@ -214,33 +229,47 @@ void OpenSellOrder()
     
     if(iTicket > 0)
     {
-        Print("✓ SELL Order opened: Ticket #", iTicket, " | Lot: ", dLotSize, " | SL: ", dStopLoss, " | TP: ", dTakeProfit);
+        Print("✓ SELL Order OPENED: Ticket #", iTicket, " | Lot: ", dLotSize);
+        Print("  Entry: ", Bid, " | SL: ", dStopLoss, " | TP: ", dTakeProfit);
     }
     else
     {
-        Print("✗ SELL Order failed: Error ", GetLastError());
+        Print("✗ SELL Order FAILED: Error ", GetLastError());
     }
 }
 
 //+------------------------------------------------------------------+
-// CALCULATE LOT SIZE based on risk
+// CALCULATE LOT SIZE based on risk (IMPROVED)
 //+------------------------------------------------------------------+
-double CalculateLotSize(double dStopLoss)
+double CalculateLotSize(int iStopLossPips)
 {
-    double dRiskAmount = AccountBalance() * (Risk / 100.0);
-    double dPipValue = MarketInfo(Symbol(), MODE_TICKVALUE);
-    double dTickSize = MarketInfo(Symbol(), MODE_TICKSIZE);
-    double dStopLossPips = MathAbs(Close[0] - dStopLoss) / dTickSize;
-    
-    double dLotSize = dRiskAmount / (dStopLossPips * dPipValue);
-    
-    // Validate lot size
     double dMinLot = MarketInfo(Symbol(), MODE_MINLOT);
     double dMaxLot = MarketInfo(Symbol(), MODE_MAXLOT);
+    double dTickValue = MarketInfo(Symbol(), MODE_TICKVALUE);
+    double dTickSize = MarketInfo(Symbol(), MODE_TICKSIZE);
+    double dBalance = AccountBalance();
     
-    dLotSize = MathMax(dMinLot, MathMin(dLotSize, dMaxLot));
+    // Validation
+    if(dMinLot <= 0 || dTickValue <= 0 || dTickSize <= 0 || dBalance <= 0)
+    {
+        Print("⚠ Warning: Invalid MarketInfo values - Using minimum lot");
+        return dMinLot;
+    }
     
-    return NormalizeDouble(dLotSize, 2);
+    double dRiskAmount = dBalance * (Risk / 100.0);
+    double dStopLossPrice = iStopLossPips * dTickSize;
+    
+    double dLotSize = dRiskAmount / (dStopLossPrice * dTickValue);
+    
+    // Clamp to valid range
+    if(dLotSize < dMinLot) dLotSize = dMinLot;
+    if(dLotSize > dMaxLot) dLotSize = dMaxLot;
+    
+    dLotSize = NormalizeDouble(dLotSize, 2);
+    
+    Print("  Lot calculation: Risk=", Risk, "% | Balance=", dBalance, " | SL=", iStopLossPips, "pips | Lot=", dLotSize);
+    
+    return dLotSize;
 }
 
 //+------------------------------------------------------------------+
@@ -259,24 +288,32 @@ void ManagePositions()
         if(OrderType() == OP_BUY)
         {
             double dProfit = Close[0] - OrderOpenPrice();
-            if(dProfit > StopLossPips * dPoint * 5)  // 5× SL = Trail activation
+            if(dProfit > TrailingStopActivation * dPoint)
             {
-                double dNewSL = Close[0] - (StopLossPips * dPoint * 3);  // Trail by 3× SL
-                if(dNewSL > OrderStopLoss())
+                double dNewSL = Close[0] - (TrailingStopActivation * dPoint / 2);
+                if(dNewSL > OrderStopLoss() + dPoint)
                 {
-                    OrderModify(OrderTicket(), OrderOpenPrice(), NormalizeDouble(dNewSL, Digits), OrderTakeProfit(), 0, clrGreen);
+                    if(!OrderModify(OrderTicket(), OrderOpenPrice(), 
+                        NormalizeDouble(dNewSL, Digits), OrderTakeProfit(), 0, clrGreen))
+                    {
+                        Print("✗ Failed to update BUY trailing stop: Error ", GetLastError());
+                    }
                 }
             }
         }
         else if(OrderType() == OP_SELL)
         {
             double dProfit = OrderOpenPrice() - Close[0];
-            if(dProfit > StopLossPips * dPoint * 5)
+            if(dProfit > TrailingStopActivation * dPoint)
             {
-                double dNewSL = Close[0] + (StopLossPips * dPoint * 3);
-                if(dNewSL < OrderStopLoss())
+                double dNewSL = Close[0] + (TrailingStopActivation * dPoint / 2);
+                if(dNewSL < OrderStopLoss() - dPoint)
                 {
-                    OrderModify(OrderTicket(), OrderOpenPrice(), NormalizeDouble(dNewSL, Digits), OrderTakeProfit(), 0, clrRed);
+                    if(!OrderModify(OrderTicket(), OrderOpenPrice(), 
+                        NormalizeDouble(dNewSL, Digits), OrderTakeProfit(), 0, clrRed))
+                    {
+                        Print("✗ Failed to update SELL trailing stop: Error ", GetLastError());
+                    }
                 }
             }
         }
@@ -286,17 +323,6 @@ void ManagePositions()
 //+------------------------------------------------------------------+
 // HELPER FUNCTIONS
 //+------------------------------------------------------------------+
-
-bool IsNewBar()
-{
-    static datetime lastTime = 0;
-    if(lastTime != Time[0])
-    {
-        lastTime = Time[0];
-        return true;
-    }
-    return false;
-}
 
 int CountOpenOrders()
 {
@@ -315,7 +341,7 @@ int CountOpenOrders()
 double GetResistanceLevel()
 {
     double dMax = High[1];
-    for(int i = 1; i < 10; i++)
+    for(int i = 1; i < 20; i++)  // Increased from 10 to 20 bars
     {
         if(High[i] > dMax) dMax = High[i];
     }
@@ -325,7 +351,7 @@ double GetResistanceLevel()
 double GetSupportLevel()
 {
     double dMin = Low[1];
-    for(int i = 1; i < 10; i++)
+    for(int i = 1; i < 20; i++)  // Increased from 10 to 20 bars
     {
         if(Low[i] < dMin) dMin = Low[i];
     }
@@ -337,8 +363,10 @@ double GetSupportLevel()
 //+------------------------------------------------------------------+
 double CalculateAverageVolume(int iPeriod)
 {
+    if(iPeriod <= 0) return 0;
+    
     double dSum = 0;
-    for(int i = 1; i <= iPeriod; i++)
+    for(int i = 1; i <= iPeriod && i < Bars; i++)
     {
         dSum += (double)Volume[i];
     }
