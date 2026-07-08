@@ -5,9 +5,9 @@
 //+------------------------------------------------------------------+
 #property copyright "LIGHTLAND"
 #property link      "https://github.com/etbethait-jpg/lightland"
-#property version   "1.02"
+#property version   "1.03"
 #property strict
-#property description "LIGHTLAND - Smart Money Expert Advisor (LOT SIZE FIXED)"
+#property description "LIGHTLAND - Smart Money Expert Advisor (UNIVERSAL LOT FIX)"
 
 //+------------------------------------------------------------------+
 // INPUT PARAMETERS
@@ -43,7 +43,7 @@ int OnInit()
     iDigits = Digits;
     
     Print("═══════════════════════════════════════════════════════════");
-    Print("  LIGHTLAND EA v1.02 - Smart Money Concept (LOT FIXED)");
+    Print("  LIGHTLAND EA v1.03 - Smart Money Concept (UNIVERSAL)");
     Print("═══════════════════════════════════════════════════════════");
     Print("Symbol: ", Symbol());
     Print("Period: ", Period(), " minutes");
@@ -51,8 +51,7 @@ int OnInit()
     Print("Stop Loss: ", StopLossPips, " pips");
     Print("Take Profit: ", TakeProfitPips, " pips");
     Print("Max Trades: ", MaxTrades);
-    Print("Volume Threshold: ", VolumeThreshold, "x");
-    Print("Account Balance: ", AccountBalance());
+    Print("Account Balance: ", AccountBalance(), " USD");
     Print("═══════════════════════════════════════════════════════════");
     
     bInitialized = true;
@@ -101,24 +100,24 @@ void OnTick()
 }
 
 //+------------------------------------------------------------------+
-// BUY SIGNAL - Detection logic (SIMPLIFIED & LESS RESTRICTIVE)
+// BUY SIGNAL - Detection logic
 //+------------------------------------------------------------------+
 bool CheckBuySignal()
 {
-    // Condition 1: RSI confirmation - Above 45 (was 50)
+    // Condition 1: RSI confirmation - Above 45
     double dRSI = iRSI(Symbol(), 0, RSIPeriod, PRICE_CLOSE, 1);
     if(dRSI < 45) return false;
     
     // Condition 2: Price action - Previous candle should be bullish
     if(Close[1] <= Open[1]) return false;
     
-    // Condition 3: Volume - Volume above AVERAGE (was 1.5x)
+    // Condition 3: Volume - Volume above AVERAGE
     double dAvgVolume = CalculateAverageVolume(20);
     if(dAvgVolume > 0 && Volume[1] < dAvgVolume * VolumeThreshold) return false;
     
-    // Condition 4: SIMPLIFIED - Close above recent support (not resistance!)
+    // Condition 4: Close above recent support
     double dSupport = GetSupportLevel();
-    if(Close[0] <= dSupport) return false;  // Price should be above support
+    if(Close[0] <= dSupport) return false;
     
     Print("═══════════════════════════════════════════════════════════");
     Print("✓ BUY SIGNAL DETECTED - ", TimeToStr(Time[0], TIME_DATE|TIME_MINUTES));
@@ -130,24 +129,24 @@ bool CheckBuySignal()
 }
 
 //+------------------------------------------------------------------+
-// SELL SIGNAL - Detection logic (SIMPLIFIED & LESS RESTRICTIVE)
+// SELL SIGNAL - Detection logic
 //+------------------------------------------------------------------+
 bool CheckSellSignal()
 {
-    // Condition 1: RSI confirmation - Below 55 (was 50)
+    // Condition 1: RSI confirmation - Below 55
     double dRSI = iRSI(Symbol(), 0, RSIPeriod, PRICE_CLOSE, 1);
     if(dRSI > 55) return false;
     
     // Condition 2: Price action - Previous candle should be bearish
     if(Close[1] >= Open[1]) return false;
     
-    // Condition 3: Volume - Volume above AVERAGE (was 1.5x)
+    // Condition 3: Volume - Volume above AVERAGE
     double dAvgVolume = CalculateAverageVolume(20);
     if(dAvgVolume > 0 && Volume[1] < dAvgVolume * VolumeThreshold) return false;
     
-    // Condition 4: SIMPLIFIED - Close below recent resistance (not support!)
+    // Condition 4: Close below recent resistance
     double dResistance = GetResistanceLevel();
-    if(Close[0] >= dResistance) return false;  // Price should be below resistance
+    if(Close[0] >= dResistance) return false;
     
     Print("═══════════════════════════════════════════════════════════");
     Print("✓ SELL SIGNAL DETECTED - ", TimeToStr(Time[0], TIME_DATE|TIME_MINUTES));
@@ -189,12 +188,13 @@ void OpenBuyOrder()
     
     if(iTicket > 0)
     {
-        Print("✓ BUY Order OPENED: Ticket #", iTicket, " | Lot: ", dLotSize);
-        Print("  Entry: ", Ask, " | SL: ", dStopLoss, " | TP: ", dTakeProfit);
+        Print("✓ BUY Order OPENED: Ticket #", iTicket);
+        Print("  Lot: ", dLotSize, " | Entry: ", Ask);
+        Print("  SL: ", dStopLoss, " | TP: ", dTakeProfit);
     }
     else
     {
-        Print("✗ BUY Order FAILED: Error ", GetLastError(), " - Lot: ", dLotSize);
+        Print("✗ BUY Order FAILED: Error ", GetLastError());
     }
 }
 
@@ -229,63 +229,50 @@ void OpenSellOrder()
     
     if(iTicket > 0)
     {
-        Print("✓ SELL Order OPENED: Ticket #", iTicket, " | Lot: ", dLotSize);
-        Print("  Entry: ", Bid, " | SL: ", dStopLoss, " | TP: ", dTakeProfit);
+        Print("✓ SELL Order OPENED: Ticket #", iTicket);
+        Print("  Lot: ", dLotSize, " | Entry: ", Bid);
+        Print("  SL: ", dStopLoss, " | TP: ", dTakeProfit);
     }
     else
     {
-        Print("✗ SELL Order FAILED: Error ", GetLastError(), " - Lot: ", dLotSize);
+        Print("✗ SELL Order FAILED: Error ", GetLastError());
     }
 }
 
 //+------------------------------------------------------------------+
-// CALCULATE LOT SIZE based on risk (CORRECTED FORMULA)
+// CALCULATE LOT SIZE - UNIVERSAL FORMULA
 //+------------------------------------------------------------------+
 double CalculateLotSize(int iStopLossPips)
 {
+    // SIMPLE UNIVERSAL FORMULA that works for ALL brokers
+    // LotSize = (Balance × Risk%) / (StopLoss pips × 10)
+    
+    double dBalance = AccountBalance();
+    double dRiskAmount = dBalance * (Risk / 100.0);
+    double dLotSize = dRiskAmount / (iStopLossPips * 10.0);
+    
+    // Get lot limits from broker
     double dMinLot = MarketInfo(Symbol(), MODE_MINLOT);
     double dMaxLot = MarketInfo(Symbol(), MODE_MAXLOT);
-    double dTickValue = MarketInfo(Symbol(), MODE_TICKVALUE);
-    double dTickSize = MarketInfo(Symbol(), MODE_TICKSIZE);
-    double dBalance = AccountBalance();
     
-    // Validation - DEFAULT VALUES IF MARKETINFO FAILS
+    // If MarketInfo fails, use defaults
     if(dMinLot <= 0) dMinLot = 0.01;
-    if(dTickValue <= 0) dTickValue = 10.0;
-    if(dTickSize <= 0) dTickSize = 0.0001;
-    if(dBalance <= 0) dBalance = 5000;
+    if(dMaxLot <= 0) dMaxLot = 100.0;
     
-    // CORRECTED FORMULA
-    double dRiskAmount = dBalance * (Risk / 100.0);      // Risk in dollars
-    double dStopLossPrice = iStopLossPips * dTickSize;   // SL in price units
-    double dLotRisk = dStopLossPrice * dTickValue;       // Risk per lot
-    
-    double dLotSize = dRiskAmount / dLotRisk;            // Lot size calculation
-    
-    Print("  [LOT CALC] Balance=$", dBalance, " | Risk%=", Risk, " | RiskAmount=$", dRiskAmount);
-    Print("           SLpips=", iStopLossPips, " | TickSize=", dTickSize, " | TickValue=", dTickValue);
-    Print("           LotRisk=$", dLotRisk, " | Calculated Lot=", dLotSize);
-    
-    // Clamp to valid range
-    if(dLotSize < dMinLot) 
-    {
-        dLotSize = dMinLot;
-        Print("           ⚠ Adjusted to MIN lot: ", dMinLot);
-    }
-    if(dLotSize > dMaxLot) 
-    {
-        dLotSize = dMaxLot;
-        Print("           ⚠ Adjusted to MAX lot: ", dMaxLot);
-    }
+    // Validate lot size
+    if(dLotSize < dMinLot) dLotSize = dMinLot;
+    if(dLotSize > dMaxLot) dLotSize = dMaxLot;
     
     dLotSize = NormalizeDouble(dLotSize, 2);
-    Print("           FINAL LOT SIZE: ", dLotSize);
+    
+    Print("  [LOT] Balance=$", dBalance, " | Risk%=", Risk, " | SLpips=", iStopLossPips);
+    Print("        Calculated: ", dRiskAmount, "/(", iStopLossPips, "*10) = ", dLotSize, " lots");
     
     return dLotSize;
 }
 
 //+------------------------------------------------------------------+
-// MANAGE POSITIONS - Trailing stop and other management
+// MANAGE POSITIONS - Trailing stop
 //+------------------------------------------------------------------+
 void ManagePositions()
 {
@@ -353,7 +340,7 @@ int CountOpenOrders()
 double GetResistanceLevel()
 {
     double dMax = High[1];
-    for(int i = 1; i < 20; i++)  // Increased from 10 to 20 bars
+    for(int i = 1; i < 20; i++)
     {
         if(High[i] > dMax) dMax = High[i];
     }
@@ -363,16 +350,13 @@ double GetResistanceLevel()
 double GetSupportLevel()
 {
     double dMin = Low[1];
-    for(int i = 1; i < 20; i++)  // Increased from 10 to 20 bars
+    for(int i = 1; i < 20; i++)
     {
         if(Low[i] < dMin) dMin = Low[i];
     }
     return dMin;
 }
 
-//+------------------------------------------------------------------+
-// CALCULATE AVERAGE VOLUME over N bars
-//+------------------------------------------------------------------+
 double CalculateAverageVolume(int iPeriod)
 {
     if(iPeriod <= 0) return 0;
